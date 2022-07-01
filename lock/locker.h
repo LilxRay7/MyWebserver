@@ -54,6 +54,10 @@ class locker {
         bool unlock() {
             return pthread_mutex_unlock(&m_mutex) == 0;
         }
+        // 返回互斥锁
+        pthread_mutex_t *get() {
+            return &m_mutex;
+        }
 
     private:
         pthread_mutex_t m_mutex;
@@ -64,36 +68,36 @@ class cond {
     public:
         // 构造函数，创建并初始化条件变量
         cond() {
-            if (pthread_mutex_init(&m_mutex, NULL) != 0) {
-                throw std::exception();
-            }
             if (pthread_cond_init(&m_cond, NULL) != 0) {
-                // 一旦出现问题，就应该立即释放已经成功分配了的资源
-                pthread_mutex_destroy(&m_mutex);
                 throw std::exception();
             }
         }
         // 销毁条件变量
         ~cond() {
-            pthread_mutex_destroy(&m_mutex);
             pthread_cond_destroy(&m_cond);
         }
-        // 等待条件变量
-        bool wait() {
+        // 用于等待目标条件变量。该函数调用时需要传入 mutex参数(加锁的互斥锁)
+        // 函数执行时，先把调用线程放入条件变量的请求队列，然后将互斥锁mutex解锁，当函数成功返回为0时，表示重新抢到了互斥锁
+        // 互斥锁会再次被锁上，也就是说函数内部会有一次解锁和加锁操作.
+        bool wait(pthread_mutex_t* m_mutex) {
             int ret = 0;
-            // 确保pthread_cond_wait操作的原子性
-            pthread_mutex_lock(&m_mutex);
-            ret = pthread_cond_wait(&m_cond, &m_mutex);
-            pthread_mutex_unlock(&m_mutex);
+        // pthread_mutex_lock(&m_mutex);
+            ret = pthread_cond_wait(&m_cond, m_mutex);
+        // pthread_mutex_unlock(&m_mutex);
             return ret == 0;
         }
+        // bool timewait(pthread_mutex_t *m_mutex, struct timespec t);
         // 唤醒等待条件变量的线程
         bool signal() {
             return pthread_cond_signal(&m_cond) == 0;
         }
+        // 以广播的方式唤醒所有等待目标条件变量的线程
+        bool broadcast() {
+        return pthread_cond_broadcast(&m_cond) == 0;
+        }
 
     private:
-        pthread_mutex_t m_mutex;
+        // pthread_mutex_t m_mutex;
         pthread_cond_t m_cond;
 };
 

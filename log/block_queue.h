@@ -11,10 +11,10 @@
 using namespace std;
 
 template<class T>
-class bolck_queue {
+class block_queue {
     public:
         // 构造函数
-        bolck_queue(int max_size = 1000) {
+        block_queue(int max_size = 1000) {
             if (max_size <= 0) {
                 exit(-1);
             }
@@ -26,7 +26,7 @@ class bolck_queue {
             m_back = -1;
         }
 
-        ~bolck_queue() {
+        ~block_queue() {
             m_mutex.lock();
             if (m_array != nullptr) {
                 delete[] m_array;
