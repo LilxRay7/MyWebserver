@@ -6,7 +6,7 @@
 #include<exception>
 #include<pthread.h>
 
-#include"locker.h"
+#include"../lock/locker.h"
 
 // 线程池类，引入模板方便代码复用
 // 使用一个工作队列完全解除了主线程和工作线程的耦合关系

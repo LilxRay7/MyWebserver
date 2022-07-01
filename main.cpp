@@ -13,10 +13,10 @@
 #include<cassert>
 #include<sys/epoll.h>
 
-#include"locker.h"
-#include"threadpool.h"
-#include"http_conn.h"
-#include"lst_timer.h"
+#include"./lock/locker.h"
+#include"./threadpool/threadpool.h"
+#include"./http/http_conn.h"
+#include"./timer/lst_timer.h"
 
 // 最大文件描述符
 #define MAX_FD 65536
