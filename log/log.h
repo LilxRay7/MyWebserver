@@ -32,6 +32,7 @@ class Log {
             Log::get_instance()->async_write_log();
         }
 
+        // 参数：日志文件名、日志缓冲区大小、最大行数和最长日志条队列
         bool init(const char* file_name, int log_buf_size = 8192, int split_lines = 5000000, int max_queue_size = 8);
 
         void write_log(int level, const char* format, ...);

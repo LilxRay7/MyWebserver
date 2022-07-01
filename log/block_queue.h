@@ -11,17 +11,10 @@
 using namespace std;
 
 template<class T>
-<<<<<<< HEAD
 class block_queue {
     public:
         // 构造函数
         block_queue(int max_size = 1000) {
-=======
-class bolck_queue {
-    public:
-        // 构造函数
-        bolck_queue(int max_size = 1000) {
->>>>>>> origin/main
             if (max_size <= 0) {
                 exit(-1);
             }
@@ -33,11 +26,7 @@ class bolck_queue {
             m_back = -1;
         }
 
-<<<<<<< HEAD
         ~block_queue() {
-=======
-        ~bolck_queue() {
->>>>>>> origin/main
             m_mutex.lock();
             if (m_array != nullptr) {
                 delete[] m_array;
@@ -115,7 +104,7 @@ class bolck_queue {
             return ret;
         }
 
-        // 往队列中添加元素，当有元素push进队列，相当于生产者生产了一个元素
+        // 生产者往队列中添加元素，当有元素push进队列，相当于生产者生产了一个元素
         bool push(const T& item) {
             m_mutex.lock();
             if (m_size >= m_max_size) {
@@ -132,7 +121,7 @@ class bolck_queue {
             return true;
         }
 
-        // pop时，如果当前队列没有元素，将会等待条件变量
+        // pop时，如果当前队列没有元素，消费者将会等待条件变量
         bool pop(T& item) {
             m_mutex.lock();
             while (m_size <= 0) {
