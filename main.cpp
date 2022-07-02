@@ -17,6 +17,7 @@
 #include"./threadpool/threadpool.h"
 #include"./http/http_conn.h"
 #include"./timer/lst_timer.h"
+#include"./log/log.h"
 
 // 最大文件描述符
 #define MAX_FD 65536
@@ -83,6 +84,9 @@ void show_error(int connfd, const char* info) {
 }
 
 int main(int argc, char* argv[]) {
+    // 异步日志模型
+    Log::get_instance()->init("ServerLog", 2000, 800000, 8);
+
     if (argc <= 2) {
         printf("usage:%s ip_address port_number\n", basename(argv[0]));
         return 1;
@@ -164,7 +168,7 @@ int main(int argc, char* argv[]) {
     while (!stop_server) {
         int number = epoll_wait(epollfd, events, MAX_EVENT_NUMBER, -1);
         if ((number < 0) && (errno != EINTR)) {
-            printf("epoll failure\n");
+            LOG_ERROR("%s", "epoll failure");
             break;
         }
 
@@ -174,13 +178,15 @@ int main(int argc, char* argv[]) {
             if (sockfd == listenfd) {
                 struct sockaddr_in client_address;
                 socklen_t client_addrlength = sizeof(client_address);
+                // 水平触发
                 int connfd = accept(listenfd, (struct sockaddr*)&client_address, &client_addrlength);
                 if (connfd < 0) {
-                    printf("errno is: %d\n", errno);
+                    LOG_ERROR("%s:errno is: %d", "accept error", errno);
                     continue;
                 }
                 if (http_conn::m_user_count >= MAX_FD) {
                     show_error(connfd, "Internal server busy");
+                    LOG_ERROR("%s", "Internal server busy");
                     continue;
                 }
                 users[connfd].init(connfd, client_address);
@@ -240,6 +246,9 @@ int main(int argc, char* argv[]) {
                 // 处理客户连接上接收到的数据
                 util_timer* timer = users_timer[sockfd].timer;
                 if (users[sockfd].read()) {
+                    // 记录日志接受数据
+                    LOG_INFO("deal with the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
+                    Log::get_instance()->flush();
                     // 检测到读事件，将该事件放入任务队列中
                     pool->append(users + sockfd);
 
@@ -250,7 +259,8 @@ int main(int argc, char* argv[]) {
                         timer->expire = cur + 3 * TIMESLOT;
                         // 更新定时器后调整链表
                         timer_lst.adjust_timer(timer);
-                        printf("adjust timer of %d\n", sockfd);
+                        LOG_INFO("%s", "adjust timer once");
+                        Log::get_instance()->flush();
                     }
                 } else {
                     timer->cb_func(&users_timer[sockfd]);
@@ -264,10 +274,16 @@ int main(int argc, char* argv[]) {
                 // 检测到可写事件
                 util_timer* timer = users_timer[sockfd].timer;
                 if (users[sockfd].write()) {
+                    // 记录日志发送数据
+                    LOG_INFO("send data to the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
+                    Log::get_instance()->flush();
+
                     // 有数据传输时定时器相关操作
                     if (timer) {
                         time_t cur = time(NULL);
                         timer->expire = cur + 3 * TIMESLOT;
+                        LOG_INFO("%s", "adjust timer once");
+                        Log::get_instance()->flush();
                         timer_lst.adjust_timer(timer);
                     }
                 } else {

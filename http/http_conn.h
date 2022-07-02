@@ -54,6 +54,10 @@ class http_conn{
         bool read();
         // 非阻塞写操作
         bool write();
+        // 获取客户地址
+        sockaddr_in* get_address() {
+            return &m_address;
+        }
 
     private:
         // 初始连接

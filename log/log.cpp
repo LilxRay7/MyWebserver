@@ -19,6 +19,7 @@ Log::~Log() {
     }
 }
 
+// 初始化工作进程并创建日志文件
 bool Log::init(const char* file_name, int log_buf_size, int split_line, int max_queue_size) {
     if (max_queue_size >= 1) {
         m_log_queue = new block_queue<string> (max_queue_size);
@@ -146,6 +147,7 @@ void Log::write_log(int level, const char* format, ...) {
     m_mutex.unlock();
 
     if (m_is_async && !m_log_queue->full()) {
+        // 将要写的内容push进队列，异步的体现之处
         m_log_queue->push(log_str);
     }
     // va_start与va_end总是成对出现

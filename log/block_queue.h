@@ -130,6 +130,7 @@ class block_queue {
                     return false;
                 }
             }
+            // 循环队列，首部向后一位，取出后size减一
             m_front = (m_front + 1) % m_max_size;
             item = m_array[m_front];
             m_size--;
@@ -137,6 +138,7 @@ class block_queue {
             return true;
         }
 
+        // 增加超时处理
         // bool poop(T& item, int ms_timeout);
 
     private:
