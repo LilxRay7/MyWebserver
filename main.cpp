@@ -64,7 +64,15 @@ void addsig(int sig, void(handler)(int), bool restart = true) {
 
 // 定时处理任务，重新定时以不断触发SIGALRM信号
 void timer_handler() {
-    timer_lst.tick();
+    if (timer_lst.tick() == false) {
+        LOG_INFO("%s", "ticking while server idle...");
+        Log::get_instance()->flush();
+        printf("ticking while server idle...\n");
+    } else {
+        LOG_INFO("%s", "clock is ticking...");
+        Log::get_instance()->flush();
+        printf("clock is ticking...\n");
+    }
     alarm(TIMESLOT);
 }
 
@@ -74,6 +82,8 @@ void cb_func(client_data* user_data) {
     assert(user_data);
     close(user_data->sockfd);
     http_conn::m_user_count--;
+    LOG_INFO("close file descriper %d", user_data->sockfd);
+    Log::get_instance()->flush();
     printf("close file descriper %d\n", user_data->sockfd);
 }
 
@@ -87,13 +97,13 @@ int main(int argc, char* argv[]) {
     // 异步日志模型
     Log::get_instance()->init("ServerLog", 2000, 800000, 8);
 
-    if (argc <= 2) {
-        printf("usage:%s ip_address port_number\n", basename(argv[0]));
+    if (argc < 2) {
+        printf("usage:%s port_number\n", basename(argv[0]));
         return 1;
     }
 
-    const char* ip = argv[1];
-    int port = atoi(argv[2]);
+    const char* ip = "192.168.211.128";
+    int port = atoi(argv[1]);
 
     // 创建线程池
     threadpool<http_conn>* pool = NULL;
@@ -178,34 +188,39 @@ int main(int argc, char* argv[]) {
             if (sockfd == listenfd) {
                 struct sockaddr_in client_address;
                 socklen_t client_addrlength = sizeof(client_address);
-                // 水平触发
-                int connfd = accept(listenfd, (struct sockaddr*)&client_address, &client_addrlength);
-                if (connfd < 0) {
-                    LOG_ERROR("%s:errno is: %d", "accept error", errno);
-                    continue;
+                // 边缘触发
+                while (1) {
+                    int connfd = accept(listenfd, (struct sockaddr*)&client_address, &client_addrlength);
+                    if (connfd < 0) {
+                        LOG_ERROR("%s:errno is: %d", "accept error", errno);
+                        Log::get_instance()->flush();
+                        break;
+                    }
+                    if (http_conn::m_user_count >= MAX_FD) {
+                        show_error(connfd, "Internal server busy");
+                        LOG_ERROR("%s", "Internal server busy");
+                        Log::get_instance()->flush();
+                        break;
+                    }
+                    users[connfd].init(connfd, client_address);
+                    // 初始化client_data数据
+                    users_timer[connfd].address = client_address;
+                    users_timer[connfd].sockfd = connfd;
+                    // 创建定时器
+                    util_timer* timer = new util_timer;
+                    // 绑定用户数据
+                    timer->user_data = &users_timer[connfd];
+                    // 设置回调函数
+                    timer->cb_func = cb_func;
+                    // 设置超时时间
+                    time_t cur = time(NULL);
+                    timer->expire = cur + 3 * TIMESLOT;
+                    // 绑定定时器
+                    users_timer[connfd].timer = timer;
+                    // 将定时器添加到链表中
+                    timer_lst.add_timer(timer);
                 }
-                if (http_conn::m_user_count >= MAX_FD) {
-                    show_error(connfd, "Internal server busy");
-                    LOG_ERROR("%s", "Internal server busy");
-                    continue;
-                }
-                users[connfd].init(connfd, client_address);
-                // 初始化client_data数据
-                users_timer[connfd].address = client_address;
-                users_timer[connfd].sockfd = connfd;
-                // 创建定时器
-                util_timer* timer = new util_timer;
-                // 绑定用户数据
-                timer->user_data = &users_timer[connfd];
-                // 设置回调函数
-                timer->cb_func = cb_func;
-                // 设置超时时间
-                time_t cur = time(NULL);
-                timer->expire = cur + 3 * TIMESLOT;
-                // 绑定定时器
-                users_timer[connfd].timer = timer;
-                // 将定时器添加到链表中
-                timer_lst.add_timer(timer);
+                continue;
             } else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
                 // 当管道的读端关闭时，写端文件描述符上的POLLHUP事件将被触发
                 // 当socket连接被对方关闭时，socket上的POLLRDHUP事件将被触发
@@ -289,8 +304,7 @@ int main(int argc, char* argv[]) {
                 } else {
                     timer->cb_func(&users_timer[sockfd]);
                     if (timer) {
-                        timer_lst.adjust_timer(timer);
-                        printf("adjust timer of %d\n", sockfd);
+                        timer_lst.del_timer(timer);
                     }
                 }
             } else {

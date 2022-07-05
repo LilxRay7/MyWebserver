@@ -2,6 +2,7 @@
 #define LST_TIMER
 
 #include<time.h>
+#include"../log/log.h"
 
 #define BUFFER_SIZE 64
 
@@ -126,11 +127,10 @@ class sort_timer_lst {
 
         // SIGALRM信号每次被触发就在其信号处理函数中执行一次tick函数，以处理到期任务
         // 如果使用统一事件源，处理函数是主函数
-        void tick() {
+        bool tick() {
             if (head == nullptr) {
-                return;
+                return false;
             }
-            printf("timer ticking...\n");
             // 获得当前系统时间
             time_t cur = time(NULL);
             util_timer* tmp = head;
@@ -150,6 +150,7 @@ class sort_timer_lst {
                 delete tmp;
                 tmp = head;
             }
+            return true;
         }
 
         private:
