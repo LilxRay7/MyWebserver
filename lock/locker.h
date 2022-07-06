@@ -16,6 +16,12 @@ class sem {
                 throw std::exception();
             }
         }
+        // 重载构造函数，设定信号量初始数量
+        sem(int num) {
+            if (sem_init(&m_sem, 0, num) != 0) {
+                throw std::exception();
+            }
+        }
         // 析构函数，销毁信号量
         ~sem() {
             sem_destroy(&m_sem);

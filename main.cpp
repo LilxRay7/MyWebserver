@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    const char* ip = "192.168.211.128";
+    const char* ip = "192.168.17.129";
     int port = atoi(argv[1]);
 
     // 创建线程池
