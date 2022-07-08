@@ -27,9 +27,9 @@
 #define TIMESLOT 5
 
 // 这三个函数在http_conn.cpp中定义，改变文件描述符属性
-extern int addfd(int epollfd, int fd, bool one_shot);
-extern int removefd(int epollfd, int fd);
-extern int setnonblocking(int fd);
+// void addfd(int epollfd, int fd, bool one_shot);
+// void removefd(int epollfd, int fd);
+// int setnonblocking(int fd);
 
 // 设置管道，当信号触发时，信号处理函数通过管道通知主循环并传递信号值
 static int pipefd[2];
@@ -105,10 +105,14 @@ int main(int argc, char* argv[]) {
     const char* ip = "192.168.17.129";
     int port = atoi(argv[1]);
 
+    // 创建数据库池
+    connection_pool* conn_pool = connection_pool::get_instance();
+    conn_pool->init("localhost", "root", "root", "yourdb", 3306, 8);
+
     // 创建线程池
-    threadpool<http_conn>* pool = NULL;
+    threadpool<http_conn>* thread_pool = NULL;
     try {
-        pool = new threadpool<http_conn>;
+        thread_pool = new threadpool<http_conn>(conn_pool);
     } catch(...) {
         return 1;
     }
@@ -117,6 +121,9 @@ int main(int argc, char* argv[]) {
     http_conn* users = new http_conn[MAX_FD];
     assert(users);
     int user_count = 0;
+
+    // 初始化数据库读取map(全局变量)
+    users->initmysql_result(conn_pool);
 
     int listenfd = socket(PF_INET, SOCK_STREAM, 0);
     assert(listenfd >= 0);
@@ -265,7 +272,7 @@ int main(int argc, char* argv[]) {
                     LOG_INFO("deal with the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
                     Log::get_instance()->flush();
                     // 检测到读事件，将该事件放入任务队列中
-                    pool->append(users + sockfd);
+                    thread_pool->append(users + sockfd);
 
                     // 有数据传输时定时器相关操作
                     if (timer) {
@@ -330,6 +337,6 @@ int main(int argc, char* argv[]) {
     // 删除用户定时器
     delete[] users_timer;
     // 销毁线程池
-    delete pool;
+    delete thread_pool;
     return 0;
 }

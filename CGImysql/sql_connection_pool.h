@@ -58,6 +58,7 @@ class connection_pool {
         string database_name;
 };
 
+// 将数据库连接的获取与释放通过RAII机制封装，避免手动释放
 class connection_RAII {
     public:
         connection_RAII(MYSQL** con, connection_pool* conn_pool);

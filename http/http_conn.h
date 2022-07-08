@@ -21,6 +21,12 @@
 #include<errno.h>
 
 #include"../lock/locker.h"
+#include"../CGImysql/sql_connection_pool.h"
+#include"../log/log.h"
+
+void addfd(int epollfd, int fd, bool one_shot);
+void removefd(int epollfd, int fd);
+int setnonblocking(int fd);
 
 class http_conn{
     public:
@@ -58,6 +64,8 @@ class http_conn{
         sockaddr_in* get_address() {
             return &m_address;
         }
+        // 获取数据库结果
+        void initmysql_result(connection_pool* conn_pool);
 
     private:
         // 初始连接
@@ -81,6 +89,7 @@ class http_conn{
         bool add_content(const char* content);
         bool add_status_line(int status, const char* title);
         bool add_headers(int content_length);
+        bool add_content_type();
         bool add_content_length(int content_length);
         bool add_linger();
         bool add_blank_line();
@@ -90,6 +99,8 @@ class http_conn{
         static int m_epollfd;
         // 统计用户数量
         static int m_user_count;
+        // 数据库连接
+        MYSQL* mysql;
 
     private:
         // 该HTTP连接的socket和对方的socket地址
@@ -131,6 +142,12 @@ class http_conn{
         // m_iv_count表示被写内存块的数量
         struct iovec m_iv[2];
         int m_iv_count;
+        // 是否启用POST
+        int cgi;
+        // 储存请求头中的数据
+        char* m_string;
+        int bytes_to_send;
+        int bytes_have_send;
 };
 
 #endif

@@ -10,7 +10,7 @@
 #include<arpa/inet.h>
 #include<string.h>
 
-static const char* request = "GET http://localhost/root/index.html HTTP/1.1\r\nConnection:keep-alive\r\n\r\nxxxxxxxxxxxx";
+static const char* request = "GET http://localhost/ HTTP/1.1\r\nConnection:keep-alive\r\n\r\nxxxxxxxxxxxx";
 
 int setnoblocking(int fd) {
     int old_option = fcntl(fd, F_GETFL);

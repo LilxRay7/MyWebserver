@@ -6,6 +6,6 @@ int main() {
     MYSQL* onesql = nullptr;
     onesql = coonpool->get_connection();
     coonpool->release_connection(onesql);
-
+    connection_RAII(&onesql, coonpool);
     return 0;
 }
