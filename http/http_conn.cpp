@@ -501,6 +501,8 @@ bool http_conn::write() {
     while(1) {
         // writev() 聚集写，按顺序发送分散内存中的数据
         temp = writev(m_sockfd, m_iv, m_iv_count);
+        LOG_INFO("send (%d) data to the client(%d)", temp, m_sockfd);
+        Log::get_instance()->flush();
         if (temp <= -1) {
             // 如果TCP写缓冲区没有空间，则等待下一轮EPOLLOUT事件
             // 虽然在此期间服务器无法立即收到同一个客户的下一个请求，但是可以保证连接的完整性
@@ -527,9 +529,9 @@ bool http_conn::write() {
         if (bytes_to_send <= 0) {
             // 发送HTTP响应成功，根据HTTP请求中的Connection字段决定是否立即关闭连接
             unmap();
+            modfd(m_epollfd, m_sockfd, EPOLLIN);
             if (m_linger) {
                 init();
-                modfd(m_epollfd, m_sockfd, EPOLLIN);
                 return true;
             } else {
                 modfd(m_epollfd, m_sockfd, EPOLLIN);
@@ -560,6 +562,8 @@ bool http_conn::add_response(const char* format, ...) {
     }
     m_write_idx += len;
     // va_start 与 va_end 总是成对出现
+    LOG_INFO("response:/n%s", m_write_buf);
+    Log::get_instance()->flush();
     va_end(arg_list);
     return true;
 }
@@ -580,7 +584,7 @@ bool http_conn::add_content_length(int content_len) {
 }
 
 bool http_conn::add_linger() {
-    return add_response("Connection %s\r\n", (m_linger == true) ? "keep-alive" : "close");
+    return add_response("Connection: %s\r\n", (m_linger == true) ? "keep-alive" : "close");
 }
 
 bool http_conn::add_blank_line() {

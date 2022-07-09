@@ -148,6 +148,8 @@ int main(int argc, char* argv[]) {
     // htons(): host to net short int 将主机的无符号短整型转换为网络字节顺序
     address.sin_port = htons(port);
 
+    int flag = 1;
+    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
     ret = bind(listenfd, (struct sockaddr*) &address, sizeof(address));
     assert(ret >= 0);
 
@@ -296,10 +298,6 @@ int main(int argc, char* argv[]) {
                 // 检测到可写事件
                 util_timer* timer = users_timer[sockfd].timer;
                 if (users[sockfd].write()) {
-                    // 记录日志发送数据
-                    LOG_INFO("send data to the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
-                    Log::get_instance()->flush();
-
                     // 有数据传输时定时器相关操作
                     if (timer) {
                         time_t cur = time(NULL);

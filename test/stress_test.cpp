@@ -69,7 +69,7 @@ void start_conn(int epoll_fd, int num, const char* ip, int port) {
     inet_pton(AF_INET, ip, &address.sin_addr);
     address.sin_port = htons(port);
     for (int i = 0; i < num; i++) {
-        sleep(1);
+        usleep(100);
         int sockfd = socket(PF_INET, SOCK_STREAM, 0);
         printf("create 1 sock\n");
         if (sockfd < 0) {
