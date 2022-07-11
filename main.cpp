@@ -269,11 +269,13 @@ int main(int argc, char* argv[]) {
             } else if (events[i].events & EPOLLIN) {
                 // 处理客户连接上接收到的数据
                 util_timer* timer = users_timer[sockfd].timer;
+                // 主线程完成数据的读
                 if (users[sockfd].read()) {
                     // 记录日志接受数据
                     LOG_INFO("deal with the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
                     Log::get_instance()->flush();
-                    // 检测到读事件，将该事件放入任务队列中
+                    // 将该事件放入任务队列中
+                    // 工作线程从队列中取得任务对象后可直接进行处理
                     thread_pool->append(users + sockfd);
 
                     // 有数据传输时定时器相关操作
@@ -297,6 +299,7 @@ int main(int argc, char* argv[]) {
             } else if (events[i].events & EPOLLOUT) {
                 // 检测到可写事件
                 util_timer* timer = users_timer[sockfd].timer;
+                // 主线程完成数据的写
                 if (users[sockfd].write()) {
                     // 有数据传输时定时器相关操作
                     if (timer) {
