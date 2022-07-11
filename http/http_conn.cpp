@@ -534,7 +534,6 @@ bool http_conn::write() {
                 init();
                 return true;
             } else {
-                modfd(m_epollfd, m_sockfd, EPOLLIN);
                 return false;
             }
         }
@@ -562,7 +561,7 @@ bool http_conn::add_response(const char* format, ...) {
     }
     m_write_idx += len;
     // va_start 与 va_end 总是成对出现
-    LOG_INFO("response:/n%s", m_write_buf);
+    LOG_INFO("response:\n%s", m_write_buf);
     Log::get_instance()->flush();
     va_end(arg_list);
     return true;
