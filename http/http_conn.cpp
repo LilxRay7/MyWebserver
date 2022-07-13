@@ -379,12 +379,11 @@ http_conn::HTTP_CODE http_conn::do_request() {
             // 检测是否重名
             if (users.find(name) == users.end()) {
                 // 更改数据库加锁
-                m_lock.lock();
+                locker_RAII lock_RAII(m_lock);
                 // 插入数据库
                 int ret = mysql_query(mysql, sql_insert);
                 // 本地的map user<string, string>也更新
                 users.insert(pair<string, string>(name, password));
-                m_lock.unlock();
 
                 if (!ret) {
                     strcpy(m_url, "/log.html");

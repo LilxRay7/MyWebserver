@@ -80,14 +80,11 @@ threadpool<T>::~threadpool() {
 template<typename T>
 bool threadpool<T>::append(T* request) {
     // 操作工作队列时一定要加锁，因为它被所有线程共享
-    m_queuelocker.lock();
+    locker_RAII lock_RAII(m_queuelocker);
     if (m_workqueue.size() > m_max_requests) {
-        m_queuelocker.unlock();
         return false;
     }
     m_workqueue.push_back(request);
-    // 操作完解锁
-    m_queuelocker.unlock();
     // 信号量加一，代表工作队列有待处理的任务
     m_queuestat.post();
     return true;
@@ -107,15 +104,13 @@ void threadpool<T>::run() {
         // 信号量减一
         m_queuestat.wait();
         // 操作工作队列时一定要加锁，因为它被所有线程共享
-        m_queuelocker.lock();
+        locker_RAII lock_RAII(m_queuelocker);
         if (m_workqueue.empty()) {
-            m_queuelocker.unlock();
             continue;
         }
 
         T* request = m_workqueue.front();
         m_workqueue.pop_front();
-        m_queuelocker.unlock();
         if (!request) {
             continue;
         }

@@ -27,89 +27,85 @@ class block_queue {
         }
 
         ~block_queue() {
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             if (m_array != nullptr) {
                 delete[] m_array;
             }
-            m_mutex.unlock();
         }
 
         void clear() {
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             m_size = 0;
             m_front = -1;
             m_back = -1;
-            m_mutex.unlock();
         }
 
         // 判断队列是否满
         bool full() {
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             if (m_size >= m_max_size) {
-                m_mutex.unlock();
                 return true;
             }
-            m_mutex.unlock();
             return false;
         }
 
         // 判断队列是否为空
         bool empty() {
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             if (m_size == 0) {
-                m_mutex.unlock();
                 return true;
             }
-            m_mutex.unlock();
             return false;
         }
 
         // 返回队首元素
         bool front(T& value) {
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             if (m_size == 0) {
-                m_mutex.unlock();
                 return false;  
             }
             value = m_array[m_front];
-            m_mutex.unlock();
             return true;
         }
 
         // 返回队尾元素
         bool back(T& value) {
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             if (m_size == 0) {
-                m_mutex.unlock();
                 return false;  
             }
             value = m_array[m_back];
-            m_mutex.unlock();
             return true;
         }
 
         int size() {
             int ret = 0;
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             ret = m_size;
-            m_mutex.unlock();
             return ret;
         }
 
         int max_size() {
             int ret = 0;
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             ret = m_max_size;
-            m_mutex.unlock();
             return ret;
         }
 
         // 生产者往队列中添加元素，当有元素push进队列，相当于生产者生产了一个元素
         bool push(const T& item) {
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             if (m_size >= m_max_size) {
                 m_cond.broadcast();
-                m_mutex.unlock();
                 return false;
             }
             // 循环数组
@@ -117,16 +113,15 @@ class block_queue {
             m_array[m_back] = item;
             m_size++;
             m_cond.broadcast();
-            m_mutex.unlock();
             return true;
         }
 
         // pop时，如果当前队列没有元素，消费者将会等待条件变量
         bool pop(T& item) {
-            m_mutex.lock();
+            // 操作阻塞队列前上锁
+            locker_RAII lock_RAII(m_mutex);
             while (m_size <= 0) {
                 if (!m_cond.wait(m_mutex.get())) {
-                    m_mutex.unlock();
                     return false;
                 }
             }
@@ -134,7 +129,6 @@ class block_queue {
             m_front = (m_front + 1) % m_max_size;
             item = m_array[m_front];
             m_size--;
-            m_mutex.unlock();
             return true;
         }
 

@@ -40,7 +40,7 @@ class sem {
 };
 
 // 封装互斥锁的类
-class locker {
+class locker{
     public:
         // 构造函数，创建并初始化互斥锁
         locker() {
@@ -61,12 +61,27 @@ class locker {
             return pthread_mutex_unlock(&m_mutex) == 0;
         }
         // 返回互斥锁
-        pthread_mutex_t *get() {
+        pthread_mutex_t* get() {
             return &m_mutex;
         }
 
     private:
         pthread_mutex_t m_mutex;
+};
+
+// RAII锁，自动加锁解锁，避免手动操作
+class locker_RAII{
+    public:
+        // 构造函数，自动加锁
+        explicit locker_RAII(locker& lock): mutex(lock) {
+            mutex.lock();
+        }
+        // 析构函数，自动解锁
+        ~locker_RAII() {
+            mutex.unlock();
+        }
+    private:
+        locker& mutex;
 };
 
 // 封装条件变量的类

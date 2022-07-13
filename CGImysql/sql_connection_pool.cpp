@@ -34,7 +34,7 @@ void connection_pool::init(string Url, string User, string Password, string Data
     database_name = Database_name;
     port = Port;
 
-    lock.lock();
+    locker_RAII lock_RAII(lock);
     for (int i = 0; i < Max_conn; i++) {
         MYSQL* con = nullptr;
         con = mysql_init(con);
@@ -60,7 +60,6 @@ void connection_pool::init(string Url, string User, string Password, string Data
     // 设置信号量数量
     reserve = sem(free_conn);
     max_conn = free_conn;
-    lock.unlock();
 }
 
 // 当有请求时，返回一个可用连接，更新已使用和空闲连接数
@@ -73,15 +72,12 @@ MYSQL* connection_pool::get_connection() {
     // 信号量减一
     reserve.wait();
     // 操作连接池前上锁
-    lock.lock();
+    locker_RAII lock_RAII(lock);
 
     con = conn_list.front();
     conn_list.pop_front();
     --free_conn;
     ++cur_conn;
-
-    // 解锁
-    lock.unlock();
 
     printf("get connection success. free connection: %d\n", free_conn);
     return con;
@@ -93,14 +89,12 @@ bool connection_pool::release_connection(MYSQL* con) {
         return false;
 
     // 操作连接池前上锁
-    lock.lock();
+    locker_RAII lock_RAII(lock);
 
     conn_list.push_back(con);
     ++free_conn;
     --cur_conn;
 
-    // 解锁
-    lock.unlock();
     // 信号量加一
     reserve.post();
 
@@ -111,14 +105,12 @@ bool connection_pool::release_connection(MYSQL* con) {
 // 销毁数据库连接池
 void connection_pool::destroy_pool() {
     // 操作连接池前上锁
-    lock.lock();
-
+    locker_RAII lock_RAII(lock);
+    
     if (conn_list.size() <= 0) {
-        // 解锁
-        lock.unlock();
         return;
     }
-        
+    
     for (auto &item : conn_list) {
         mysql_close(item);
     }
@@ -126,8 +118,6 @@ void connection_pool::destroy_pool() {
     cur_conn = 0;
     free_conn = 0;
     conn_list.clear();
-    // 解锁
-    lock.unlock();
     printf("destroy pool success.\n");
 }
 

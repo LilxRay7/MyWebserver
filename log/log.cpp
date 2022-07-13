@@ -103,33 +103,35 @@ void Log::write_log(int level, const char* format, ...) {
             break;
     }
 
-    m_mutex.lock();
-    m_count++;
+    {
+        // 写日志前加锁
+        locker_RAII lock_RAII(m_mutex);
+        m_count++;
 
-    // 如果是新一天或者日志数量到达最大行数就新开日志
-    if (m_today != my_tm.tm_mday || m_count % m_split_lines == 0) {
-        char new_log[256] = {0};
-        fflush(m_fp);
-        fclose(m_fp);
-        char tail[16] = {0};
-        snprintf(tail, 16, "%d_%02d_%02d_", my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday);
-        if (m_today != my_tm.tm_mday) {
-            snprintf(new_log, 255, "%s%s%s", dir_name, tail, log_name);
-            m_today = my_tm.tm_mday;
-            m_count = 0;
-        } else {
-            snprintf(new_log, 255, "%s%s%s.%lld", dir_name, tail, log_name, m_count / m_split_lines);
+        // 如果是新一天或者日志数量到达最大行数就新开日志
+        if (m_today != my_tm.tm_mday || m_count % m_split_lines == 0) {
+            char new_log[256] = {0};
+            fflush(m_fp);
+            fclose(m_fp);
+            char tail[16] = {0};
+            snprintf(tail, 16, "%d_%02d_%02d_", my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday);
+            if (m_today != my_tm.tm_mday) {
+                snprintf(new_log, 255, "%s%s%s", dir_name, tail, log_name);
+                m_today = my_tm.tm_mday;
+                m_count = 0;
+            } else {
+                snprintf(new_log, 255, "%s%s%s.%lld", dir_name, tail, log_name, m_count / m_split_lines);
+            }
+            m_fp = fopen(new_log, "a");
         }
-        m_fp = fopen(new_log, "a");
     }
-
-    m_mutex.unlock();
 
     va_list valst;
     va_start(valst, format);
 
     string log_str;
-    m_mutex.lock();
+    // 写日志前加锁
+    locker_RAII lock_RAII(m_mutex);
 
     // 写入的具体时间内容格式
     // snprintf()返回值为欲写入的字符串长度
@@ -144,8 +146,6 @@ void Log::write_log(int level, const char* format, ...) {
     m_buf[n + m + 1] = '\0';
     log_str = m_buf;
 
-    m_mutex.unlock();
-
     if (m_is_async && !m_log_queue->full()) {
         // 将要写的内容push进队列，异步的体现之处
         m_log_queue->push(log_str);
@@ -155,8 +155,8 @@ void Log::write_log(int level, const char* format, ...) {
 }
 
 void Log::flush(void) {
-    m_mutex.lock();
+    // 写日志前加锁
+    locker_RAII lock_RAII(m_mutex);
     // 强制刷新写入流缓冲区
     fflush(m_fp);
-    m_mutex.unlock();
 }
