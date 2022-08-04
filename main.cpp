@@ -1,6 +1,3 @@
-// version: 2.0
-// 增加定时器处理无活动连接
-
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
@@ -40,9 +37,11 @@ static int epollfd = 0;
 
 // 信号处理函数
 void sig_handler(int sig) {
-    // 为保证函数的可重入性，保留原来的errno
     // 若一个程序或子程序可以“在任意时刻被中断然后操作系统调度执行另外一段代码
     // 这段代码又调用了该子程序不会出错”，则称其为可重入（re-entrant）的
+    // 反例如进程正在执行malloc，在其堆中分配另外的存储空间，而此时由于捕捉到信号而执行信号处理程序
+    // 而其中又调用malloc，就可能会对进程造成破坏，因为malloc为存储区维护一个链表，此链表可能被更改
+    // errno可能被信号处理程序中的函数重写，所以应该在调用前保存，调用后恢复
     int save_errno = errno;
     int msg = sig;
     // 将信号值写入管道以通知主循环
